@@ -3,23 +3,19 @@ import 'user_model.dart';
 class PostModel {
   final int id;
   final String content;
-  // Liên kết với UserModel giống như quan hệ @ManyToOne trong JPA/Hibernate
   final UserModel author; 
-  
-  // DateTime là class có sẵn của Dart để xử lý ngày tháng (giống LocalDateTime trong Java)
   final DateTime createdAt;
-  
-  // List là kiểu mảng cơ bản trong Dart (giống List<String> trong Java/C#).
-  // Dùng List<String> thay vì mảng tĩnh String[] vì nó co giãn được.
   final List<String> hashtags;
-  
-  // Thuộc tính có thể null, dành cho tính năng Share bài viết.
   final int? originalPostId; 
   
-  // Các kiểu số đếm (int) có thể thay đổi nên không dùng final nếu bạn muốn update Like ở các bước sau.
-  // Nhưng ở ví dụ này, để giữ tính Immutable, ta dùng final.
-  final int reactionCount;
-  final int commentCount;
+  // Chúng ta xóa 'final' ở reactionCount và isLiked vì khi User bấm Like, 
+  // ta cần thay đổi hai giá trị này (Mutational State cho StatelessWidget/StatefulWidget).
+  int reactionCount;
+  int commentCount;
+  bool isLiked; // Thêm bool để biết User hiện tại đã like bài này chưa
+  
+  // double: Mô phỏng "điểm quan tâm" (score) do AI tính toán (đã nhắc tới trong yêu cầu đồ án).
+  final double interestScore; 
 
   PostModel({
     required this.id,
@@ -28,7 +24,25 @@ class PostModel {
     required this.createdAt,
     required this.hashtags,
     this.originalPostId,
-    this.reactionCount = 0, // Cung cấp giá trị mặc định là 0 nếu không truyền vào
+    this.reactionCount = 0,
     this.commentCount = 0,
+    this.isLiked = false,
+    this.interestScore = 0.0,
   });
+
+  // Tương tự, parse dữ liệu JSON từ API
+  factory PostModel.fromJson(Map<String, dynamic> json) {
+    return PostModel(
+      id: json['id'],
+      content: json['content'],
+      author: UserModel.fromJson(json['author']), // Parse lồng nhau (Nested JSON)
+      createdAt: DateTime.parse(json['createdAt']), // Ép kiểu String thành DateTime
+      hashtags: List<String>.from(json['hashtags']), // Ép kiểu dynamic List thành List<String>
+      originalPostId: json['originalPostId'],
+      reactionCount: json['reactionCount'] ?? 0,
+      commentCount: json['commentCount'] ?? 0,
+      isLiked: json['isLiked'] ?? false,
+      interestScore: (json['interestScore'] ?? 0).toDouble(), // Xử lý kiểu double
+    );
+  }
 }

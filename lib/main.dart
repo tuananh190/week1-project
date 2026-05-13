@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
 
 void main() {
-  runApp(const TaskManagerApp());
+  runApp(const SocialNetworkApp());
 }
 
-class TaskManagerApp extends StatelessWidget {
-  const TaskManagerApp({super.key});
+class SocialNetworkApp extends StatelessWidget {
+  const SocialNetworkApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Task Manager',
+      title: 'Social Network',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      // We will set up proper navigation routes here
+      // Điều hướng: Mở app lên sẽ vào thẳng màn hình Đăng Nhập
       initialRoute: '/',
       routes: {
-        '/': (context) => const HomeScreen(),
+        '/': (context) => const LoginScreen(),
       },
     );
   }
