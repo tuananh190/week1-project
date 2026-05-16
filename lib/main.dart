@@ -1,8 +1,21 @@
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
-  runApp(const SocialNetworkApp());
+import 'firebase_options.dart';
+import 'screens/login_screen.dart';
+import 'providers/feed_provider.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => FeedProvider(),
+      child: const SocialNetworkApp(),
+    ),
+  );
 }
 
 class SocialNetworkApp extends StatelessWidget {
@@ -12,15 +25,9 @@ class SocialNetworkApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Social Network',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
-      ),
-      // Điều hướng: Mở app lên sẽ vào thẳng màn hình Đăng Nhập
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
       initialRoute: '/',
-      routes: {
-        '/': (context) => const LoginScreen(),
-      },
+      routes: {'/': (context) => const LoginScreen()},
     );
   }
 }

@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'feed_screen.dart'; // Màn hình bảng tin sẽ được tạo ở bước tiếp theo
+import '../services/auth_service.dart';
+import 'home_screen.dart';
 
-// KIẾN THỨC: StatefulWidget
-// Màn hình này cần StatefulWidget vì chúng ta cần xử lý 2 trạng thái:
-// 1. Text đang được nhập trong ô input.
-// 2. Ẩn/Hiện mật khẩu (đổi icon con mắt).
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,162 +10,172 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // KIẾN THỨC MỚI: Form & Input (Tuần 2.2)
-  final _formKey = GlobalKey<FormState>(); // Key để validate Form
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true; // Biến trạng thái để ẩn/hiện password
+  final AuthService _authService = AuthService();
 
-  // KIẾN THỨC MỚI: Vòng đời dispose (Tuần 2.3)
-  // Phải giải phóng bộ nhớ của các Controller khi rời khỏi màn hình này
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  bool _isLoading = false;
+  bool _isPasswordVisible = false;
+
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  void _handleLogin() {
-    // Kích hoạt hàm kiểm tra lỗi (validator) của tất cả TextFormField bên trong
-    if (_formKey.currentState!.validate()) {
-      // KIẾN THỨC MỚI: Snackbar (Tuần 2.2)
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đăng nhập thành công! Đang chuyển hướng...')),
-      );
+  Future<void> _signIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-      // KIẾN THỨC MỚI: Navigation (Tuần 2.2)
-      // Dùng pushReplacement để chuyển sang FeedScreen và XÓA luôn LoginScreen khỏi lịch sử 
-      // (người dùng bấm nút Back điện thoại sẽ thoát app chứ không quay lại Login).
-      Future.delayed(const Duration(seconds: 1), () {
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const FeedScreen()),
-        );
-      });
+    if (email.isEmpty || password.isEmpty) {
+      _showMessage('Vui lòng nhập email và mật khẩu');
+      return;
     }
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      await _authService.signIn(email: email, password: password);
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } catch (e) {
+      _showMessage('Đăng nhập thất bại: ${e.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signUp() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      _showMessage('Vui lòng nhập email và mật khẩu');
+      return;
+    }
+
+    if (password.length < 6) {
+      _showMessage('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      await _authService.signUp(email: email, password: password);
+
+      if (!mounted) return;
+
+      _showMessage('Đăng ký thành công');
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } catch (e) {
+      _showMessage('Đăng ký thất bại: ${e.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-    // Scaffold: Khung sườn cơ bản của 1 màn hình
     return Scaffold(
+      backgroundColor: const Color(0xFFFDF7FF),
       body: Center(
-        // SingleChildScrollView: Cho phép cuộn khi bàn phím ảo bật lên che khuất màn hình
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0), // Padding (Tuần 2.2)
-            child: Form(
-              key: _formKey,
-              child: Column( // Column: Xếp các Widget theo chiều dọc (Tuần 2.2)
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch, // Kéo giãn các con ra hết chiều ngang
-                children: [
-                  // Icon mạng xã hội
-                  const Icon(Icons.public, size: 80, color: Colors.blue),
-                  const SizedBox(height: 32),
-                  
-                  const Text(
-                    'Đăng Nhập',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Ô nhập Username
-                  TextFormField(
-                    controller: _usernameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Tên đăng nhập',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                    // Logic validate (đúng 10 ký tự, chữ đầu viết hoa) được áp dụng tại đây
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Tên đăng nhập không được để trống';
-                      }
-                      if (value.length != 10) {
-                        return 'Phải có đúng 10 ký tự';
-                      }
-                      if (value[0] != value[0].toUpperCase()) {
-                        return 'Chữ cái đầu tiên phải viết hoa';
-                      }
-                      return null; // Hợp lệ
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Ô nhập Password
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword, // Ẩn mật khẩu bằng dấu chấm
-                    decoration: InputDecoration(
-                      labelText: 'Mật khẩu',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.lock),
-                      // Nút ẩn/hiện mật khẩu (IconButton - Tuần 2.2)
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () {
-                          // KIẾN THỨC MỚI: setState (Tuần 2.3)
-                          // Thay đổi giá trị biến _obscurePassword, sau đó gọi setState để UI tự vẽ lại ổ khóa/mở khóa
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Mật khẩu không được để trống';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Nút bấm đăng nhập (ElevatedButton - Tuần 2.2)
-                  ElevatedButton(
-                    onPressed: _handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('ĐĂNG NHẬP', style: TextStyle(fontSize: 16)),
-                  ),
-                  
-                  // MỚI: Dialog (Tuần 2.2)
-                  TextButton(
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: const Text('Quên mật khẩu?'),
-                            content: const Text('Tính năng khôi phục mật khẩu đang được xây dựng.'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: const Text('ĐÓNG'),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    }, 
-                    child: const Text('Quên mật khẩu?'),
-                  ),
-                  
-                  // Nút chuyển sang trang đăng ký (TextButton - Tuần 2.2)
-                  TextButton(
-                    onPressed: () {}, 
-                    child: const Text('Chưa có tài khoản? Đăng ký ngay'),
-                  )
-                ],
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.public, size: 72, color: Colors.blue),
+              const SizedBox(height: 24),
+              const Text(
+                'Đăng Nhập',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
-            ),
+              const SizedBox(height: 32),
+
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.person),
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              TextField(
+                controller: _passwordController,
+                obscureText: !_isPasswordVisible,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.lock),
+                  labelText: 'Mật khẩu',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _signIn,
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text('ĐĂNG NHẬP'),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              TextButton(
+                onPressed: _isLoading ? null : _signUp,
+                child: const Text('Chưa có tài khoản? Đăng ký ngay'),
+              ),
+            ],
           ),
         ),
       ),

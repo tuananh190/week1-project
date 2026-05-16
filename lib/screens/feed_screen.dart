@@ -1,35 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/post_model.dart';
-import '../services/post_service.dart';
+import '../providers/feed_provider.dart';
 
-class FeedScreen extends StatefulWidget {
+// Đã biến thành StatelessWidget vì State đã được tách ra Provider
+class FeedScreen extends StatelessWidget {
   const FeedScreen({super.key});
-
-  @override
-  State<FeedScreen> createState() => _FeedScreenState();
-}
-
-class _FeedScreenState extends State<FeedScreen> {
-  final PostService _postService = PostService();
-  late Future<List<PostModel>> _postsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _postsFuture = _postService.fetchPosts();
-  }
-
-  // Hàm xử lý việc bấm nút Like cục bộ (Tuần 2.3 - setState)
-  void _toggleLike(PostModel post) {
-    setState(() {
-      post.isLiked = !post.isLiked;
-      if (post.isLiked) {
-        post.reactionCount++;
-      } else {
-        post.reactionCount--;
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,36 +14,58 @@ class _FeedScreenState extends State<FeedScreen> {
         title: const Text('Bảng tin'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
+        actions: [
+          // KIẾN THỨC MỚI: Selector (Tuần 3.2)
+          // Selector chỉ lắng nghe ĐÚNG MỘT PHẦN nhỏ của Provider.
+          // Ở đây, nó chỉ lắng nghe biến `likedPostsCount`. Nếu có post mới nhưng số Like không đổi, 
+          // Icon này sẽ KHÔNG bị vẽ lại (Tối ưu hóa cực mạnh).
+          Selector<FeedProvider, int>(
+            selector: (context, provider) => provider.likedPostsCount,
+            builder: (context, count, child) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 16.0),
+                child: Center(
+                  child: Text(
+                    'Đã Thích: $count',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              );
+            },
+          )
+        ],
       ),
-      body: FutureBuilder<List<PostModel>>(
-        future: _postsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      // KIẾN THỨC MỚI: Consumer (Tuần 3.2)
+      // Bao bọc vùng giao diện cần thay đổi dữ liệu.
+      // Khi FeedProvider gọi notifyListeners(), chỉ vùng bên trong builder này được vẽ lại.
+      body: Consumer<FeedProvider>(
+        builder: (context, feedProvider, child) {
+          if (feedProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Lỗi: ${snapshot.error}'));
-          } else if (snapshot.hasData) {
-            final posts = snapshot.data!;
-            
-            // Lưới gợi ý bạn bè (Dùng GridView - Tuần 2.2)
-            // Lồng nó bên trong ListView chính (sử dụng Column)
-            return ListView(
-              children: [
-                _buildFriendSuggestionsGrid(), // Component con hiển thị lưới
-                
-                // Trải phẳng danh sách bài viết
-                ...posts.map((post) => _buildPostCard(post)),
-              ],
-            );
+          } 
+          
+          if (feedProvider.errorMessage != null) {
+            return Center(child: Text('Lỗi: ${feedProvider.errorMessage}'));
           }
-          return const Center(child: Text('Trống.'));
+
+          final posts = feedProvider.posts;
+          if (posts.isEmpty) {
+             return const Center(child: Text('Trống.'));
+          }
+          
+          return ListView(
+            children: [
+              _buildFriendSuggestionsGrid(), 
+              ...posts.map((post) => _buildPostCard(context, post)),
+            ],
+          );
         },
       ),
     );
   }
 
-  // Helper method để vẽ một thẻ Bài viết
-  Widget _buildPostCard(PostModel post) {
+  // Thêm context vào tham số vì ta cần dùng context.read()
+  Widget _buildPostCard(BuildContext context, PostModel post) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Padding(
@@ -77,15 +75,12 @@ class _FeedScreenState extends State<FeedScreen> {
           children: [
             Row(
               children: [
-                // KIẾN THỨC MỚI: Stack (Tuần 2.2)
-                // Dùng Stack để đè chấm xanh (Online) lên trên Avatar
                 Stack(
                   children: [
                     CircleAvatar(
                       backgroundColor: Colors.grey[300],
                       child: const Icon(Icons.person, color: Colors.grey),
                     ),
-                    // Nếu user đang online thì vẽ chấm xanh ở góc dưới bên phải
                     if (post.author.isOnline)
                       Positioned(
                         right: 0,
@@ -116,8 +111,6 @@ class _FeedScreenState extends State<FeedScreen> {
             Text(post.content),
             const SizedBox(height: 12),
             
-            // MỚI: Image widget (Tuần 2.2)
-            // Hiển thị một hình ảnh ngẫu nhiên nếu bài viết là bài chẵn
             if (post.id % 2 == 0)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
@@ -131,21 +124,23 @@ class _FeedScreenState extends State<FeedScreen> {
               ),
             if (post.id % 2 == 0) const SizedBox(height: 12),
             
-            const Divider(), // Đường kẻ ngang
+            const Divider(), 
             
-            // Hàng nút tương tác
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Nút Like (TextButton kết hợp Icon)
                 TextButton.icon(
-                  // Nút có màu Đỏ nếu isLiked == true, màu Xám nếu false
                   style: TextButton.styleFrom(
                     foregroundColor: post.isLiked ? Colors.red : Colors.grey[700],
                   ),
                   icon: Icon(post.isLiked ? Icons.favorite : Icons.favorite_border),
                   label: Text('${post.reactionCount}'),
-                  onPressed: () => _toggleLike(post), // Bấm vào sẽ gọi setState
+                  onPressed: () {
+                    // KIẾN THỨC MỚI: context.read (Tuần 3.2)
+                    // Cách để lấy hàm từ Provider MÀ KHÔNG LẮNG NGHE thay đổi (không bị rebuild cái nút khi bấm).
+                    // Chỉ gửi tín hiệu "Hãy bấm Like đi!" tới Provider.
+                    context.read<FeedProvider>().toggleLike(post.id);
+                  }, 
                 ),
                 TextButton.icon(
                   style: TextButton.styleFrom(foregroundColor: Colors.grey[700]),
@@ -161,19 +156,18 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  // Component phụ mô phỏng GridView (Lưới cuộn ngang) hiển thị Gợi ý kết bạn
   Widget _buildFriendSuggestionsGrid() {
     return Container(
-      height: 120, // Chiều cao cố định cho khu vực cuộn ngang
+      height: 120, 
       margin: const EdgeInsets.only(top: 8, bottom: 8),
       child: GridView.builder(
         scrollDirection: Axis.horizontal,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 1, // 1 hàng
-          childAspectRatio: 1.0, // Hình vuông
+          crossAxisCount: 1, 
+          childAspectRatio: 1.0, 
           mainAxisSpacing: 8,
         ),
-        itemCount: 5, // Có 5 người gợi ý
+        itemCount: 5, 
         itemBuilder: (context, index) {
           return Card(
             child: Column(
@@ -183,7 +177,6 @@ class _FeedScreenState extends State<FeedScreen> {
                 const SizedBox(height: 4),
                 Text('User $index', style: const TextStyle(fontSize: 12)),
                 const SizedBox(height: 4),
-                // Nút "Thêm bạn" nhỏ xíu
                 ElevatedButton(
                   onPressed: () {}, 
                   style: ElevatedButton.styleFrom(
