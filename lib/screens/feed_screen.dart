@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:timeago/timeago.dart' as timeago;
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/post_model.dart';
+import '../models/notification_model.dart';
 import '../providers/feed_provider.dart';
+import '../services/auth_service.dart';
+import '../services/notification_service.dart';
+import '../widgets/comment_bottom_sheet.dart';
+import '../widgets/friend_suggestions_widget.dart';
 import 'create_post_screen.dart';
+import 'notifications_screen.dart';
 
 // Đã biến thành StatelessWidget vì State đã được tách ra Provider
 class FeedScreen extends StatelessWidget {
@@ -10,16 +18,15 @@ class FeedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Đăng ký ngôn ngữ tiếng Việt cho timeago
+    timeago.setLocaleMessages('vi', timeago.ViMessages());
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bảng tin'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
-          // KIẾN THỨC MỚI: Selector (Tuần 3.2)
-          // Selector chỉ lắng nghe ĐÚNG MỘT PHẦN nhỏ của Provider.
-          // Ở đây, nó chỉ lắng nghe biến `likedPostsCount`. Nếu có post mới nhưng số Like không đổi, 
-          // Icon này sẽ KHÔNG bị vẽ lại (Tối ưu hóa cực mạnh).
           Selector<FeedProvider, int>(
             selector: (context, provider) => provider.likedPostsCount,
             builder: (context, count, child) {
@@ -33,7 +40,58 @@ class FeedScreen extends StatelessWidget {
                 ),
               );
             },
-          )
+          ),
+          // Nút Thông báo
+          StreamBuilder<List<NotificationModel>>(
+            stream: FirebaseAuth.instance.currentUser != null
+                ? NotificationService().getNotificationsStream(FirebaseAuth.instance.currentUser!.uid)
+                : const Stream.empty(),
+            builder: (context, snapshot) {
+              int unreadCount = 0;
+              if (snapshot.hasData) {
+                unreadCount = snapshot.data!.where((n) => !n.isRead).length;
+              }
+              
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+                      );
+                    },
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Text(
+                          '$unreadCount',
+                          style: const TextStyle(color: Colors.white, fontSize: 10),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                ],
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await AuthService().signOut();
+            },
+          ),
         ],
       ),
       // KIẾN THỨC MỚI: Consumer (Tuần 3.2)
@@ -56,7 +114,7 @@ class FeedScreen extends StatelessWidget {
           
           return ListView(
             children: [
-              _buildFriendSuggestionsGrid(), 
+              const FriendSuggestionsWidget(),
               ...posts.map((post) => _buildPostCard(context, post)),
             ],
           );
@@ -112,7 +170,18 @@ class FeedScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(post.author.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text('@${post.author.username}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                    Row(
+                      children: [
+                        Text('@${post.author.username}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                        const SizedBox(width: 8),
+                        Text('•', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                        const SizedBox(width: 8),
+                        Text(
+                          timeago.format(post.createdAt, locale: 'vi'),
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ],
@@ -120,19 +189,6 @@ class FeedScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Text(post.content),
             const SizedBox(height: 12),
-            
-            if (post.hashCode % 2 == 0)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  'https://picsum.photos/seed/${post.hashCode}/400/200',
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                ),
-              ),
-            if (post.hashCode % 2 == 0) const SizedBox(height: 12),
             
             const Divider(), 
             
@@ -156,7 +212,16 @@ class FeedScreen extends StatelessWidget {
                   style: TextButton.styleFrom(foregroundColor: Colors.grey[700]),
                   icon: const Icon(Icons.chat_bubble_outline),
                   label: Text('${post.commentCount}'),
-                  onPressed: () {},
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      ),
+                      builder: (context) => CommentBottomSheet(postId: post.id),
+                    );
+                  },
                 ),
               ],
             )
@@ -168,7 +233,7 @@ class FeedScreen extends StatelessWidget {
 
   Widget _buildFriendSuggestionsGrid() {
     return Container(
-      height: 120, 
+      height: 130, 
       margin: const EdgeInsets.only(top: 8, bottom: 8),
       child: GridView.builder(
         scrollDirection: Axis.horizontal,

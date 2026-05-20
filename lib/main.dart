@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/feed_screen.dart';
 import 'providers/feed_provider.dart';
 
 Future<void> main() async {
@@ -27,6 +27,7 @@ class SocialNetworkApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Social Network',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
@@ -37,7 +38,8 @@ class SocialNetworkApp extends StatelessWidget {
             );
           }
           if (snapshot.hasData) {
-            return const HomeScreen();
+            // Thay đổi từ HomeScreen sang FeedScreen để sử dụng Provider
+            return const FeedScreen();
           }
           return const LoginScreen();
         },

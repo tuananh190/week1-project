@@ -8,6 +8,7 @@ class PostModel {
   final List<String> hashtags;
   final String? originalPostId;
 
+  final List<String> likedBy;
   int reactionCount;
   int commentCount;
   bool isLiked;
@@ -20,6 +21,7 @@ class PostModel {
     required this.createdAt,
     required this.hashtags,
     this.originalPostId,
+    this.likedBy = const [],
     this.reactionCount = 0,
     this.commentCount = 0,
     this.isLiked = false,
@@ -34,6 +36,7 @@ class PostModel {
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
       hashtags: json['hashtags'] != null ? List<String>.from(json['hashtags']) : [],
       originalPostId: json['originalPostId'],
+      likedBy: json['likedBy'] != null ? List<String>.from(json['likedBy']) : [],
       reactionCount: json['reactionCount'] ?? 0,
       commentCount: json['commentCount'] ?? 0,
       isLiked: json['isLiked'] ?? false,
@@ -49,6 +52,7 @@ class PostModel {
       'createdAt': createdAt.toIso8601String(),
       'hashtags': hashtags,
       'originalPostId': originalPostId,
+      'likedBy': likedBy,
       'reactionCount': reactionCount,
       'commentCount': commentCount,
       'isLiked': isLiked,

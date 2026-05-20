@@ -5,6 +5,8 @@ class UserModel {
   final String lastName;
   final String? avatarUrl;
   final bool isOnline;
+  final List<String> friends;
+  final List<String> friendRequests;
 
   UserModel({
     required this.id,
@@ -13,6 +15,8 @@ class UserModel {
     required this.lastName,
     this.avatarUrl,
     this.isOnline = false,
+    this.friends = const [],
+    this.friendRequests = const [],
   });
 
   String get fullName => '$firstName $lastName';
@@ -25,6 +29,8 @@ class UserModel {
       lastName: json['lastName'] ?? '',
       avatarUrl: json['avatarUrl'],
       isOnline: json['isOnline'] ?? false,
+      friends: json['friends'] != null ? List<String>.from(json['friends']) : [],
+      friendRequests: json['friendRequests'] != null ? List<String>.from(json['friendRequests']) : [],
     );
   }
 
@@ -36,6 +42,8 @@ class UserModel {
       'lastName': lastName,
       'avatarUrl': avatarUrl,
       'isOnline': isOnline,
+      'friends': friends,
+      'friendRequests': friendRequests,
     };
   }
 }
