@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
-
+import '../models/user_model.dart';
+import 'user_service.dart';
 class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
@@ -11,10 +12,23 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    return await _firebaseAuth.createUserWithEmailAndPassword(
+    final cred = await _firebaseAuth.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password.trim(),
     );
+
+    // Save basic profile to Firestore
+    if (cred.user != null) {
+      final userModel = UserModel(
+        id: cred.user!.uid,
+        username: email.split('@')[0],
+        firstName: 'New',
+        lastName: 'User',
+      );
+      await UserService().createUserProfile(userModel);
+    }
+    
+    return cred;
   }
 
   Future<UserCredential> signIn({

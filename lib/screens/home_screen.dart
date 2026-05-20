@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/post_model.dart';
 import '../services/post_service.dart';
+import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,6 +13,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // Tạo một instance của PostService để gọi dữ liệu
   final PostService _postService = PostService();
+  final AuthService _authService = AuthService();
 
   // Khai báo một Future sẽ nắm giữ danh sách bài viết.
   late Future<List<PostModel>> _postsFuture;
@@ -29,6 +31,15 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Bảng tin (Social Network)'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await _authService.signOut();
+              // Không cần chuyển trang vì main.dart tự động handle
+            },
+          ),
+        ],
       ),
       // FutureBuilder: Một widget tuyệt vời của Flutter để xử lý Async Programming trực tiếp trên UI
       body: FutureBuilder<List<PostModel>>(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/post_model.dart';
 import '../providers/feed_provider.dart';
+import 'create_post_screen.dart';
 
 // Đã biến thành StatelessWidget vì State đã được tách ra Provider
 class FeedScreen extends StatelessWidget {
@@ -50,7 +51,7 @@ class FeedScreen extends StatelessWidget {
 
           final posts = feedProvider.posts;
           if (posts.isEmpty) {
-             return const Center(child: Text('Trống.'));
+             return const Center(child: Text('Chưa có bài viết nào. Hãy là người đầu tiên đăng bài!'));
           }
           
           return ListView(
@@ -60,6 +61,15 @@ class FeedScreen extends StatelessWidget {
             ],
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CreatePostScreen()),
+          );
+        },
+        child: const Icon(Icons.edit),
       ),
     );
   }
@@ -111,18 +121,18 @@ class FeedScreen extends StatelessWidget {
             Text(post.content),
             const SizedBox(height: 12),
             
-            if (post.id % 2 == 0)
+            if (post.hashCode % 2 == 0)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.network(
-                  'https://picsum.photos/seed/${post.id}/400/200',
+                  'https://picsum.photos/seed/${post.hashCode}/400/200',
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
                 ),
               ),
-            if (post.id % 2 == 0) const SizedBox(height: 12),
+            if (post.hashCode % 2 == 0) const SizedBox(height: 12),
             
             const Divider(), 
             

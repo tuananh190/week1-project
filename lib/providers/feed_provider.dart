@@ -46,7 +46,7 @@ class FeedProvider extends ChangeNotifier {
   }
 
   // Hàm Toggle Like chuyển từ feed_screen.dart sang đây
-  void toggleLike(int postId) {
+  void toggleLike(String postId) {
     // Tìm bài viết có id tương ứng
     final index = _posts.indexWhere((p) => p.id == postId);
     if (index != -1) {

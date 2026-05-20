@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,12 +41,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
       await _authService.signIn(email: email, password: password);
 
-      if (!mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
+      // KHÔNG CẦN CHUYỂN TRANG NỮA VÌ MAIN.DART ĐÃ LẮNG NGHE STREAM
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        _showMessage('Không tìm thấy tài khoản với email này.');
+      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        _showMessage('Tài khoản hoặc mật khẩu không chính xác.');
+      } else if (e.code == 'invalid-email') {
+        _showMessage('Email không hợp lệ.');
+      } else {
+        _showMessage('Lỗi Firebase: ${e.message}');
+      }
     } catch (e) {
       _showMessage('Đăng nhập thất bại: ${e.toString()}');
     } finally {
@@ -83,10 +88,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
       _showMessage('Đăng ký thành công');
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
+      // KHÔNG CẦN CHUYỂN TRANG
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'weak-password') {
+        _showMessage('Mật khẩu quá yếu.');
+      } else if (e.code == 'email-already-in-use') {
+        _showMessage('Email này đã được sử dụng.');
+      } else {
+        _showMessage('Lỗi Firebase: ${e.message}');
+      }
     } catch (e) {
       _showMessage('Đăng ký thất bại: ${e.toString()}');
     } finally {
